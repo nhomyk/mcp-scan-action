@@ -1,0 +1,63 @@
+name: Test mcp-scan-action
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  test:
+    name: Self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run mcp-scan-action against this repo
+        id: scan
+        uses: ./
+        with:
+          fail-on-critical: 'false'
+          sarif-output: 'test-results.sarif'
+          upload-sarif: 'false'
+
+      - name: Assert outputs are set
+        run: |
+          echo "risk-level:     ${{ steps.scan.outputs.risk-level }}"
+          echo "findings-count: ${{ steps.scan.outputs.findings-count }}"
+          echo "critical-count: ${{ steps.scan.outputs.critical-count }}"
+
+          if [ -z "${{ steps.scan.outputs.risk-level }}" ]; then
+            echo "FAIL: risk-level output is empty"
+            exit 1
+          fi
+          if [ -z "${{ steps.scan.outputs.findings-count }}" ]; then
+            echo "FAIL: findings-count output is empty"
+            exit 1
+          fi
+          echo "PASS: all outputs set"
+
+      - name: Assert SARIF file exists
+        run: |
+          if [ ! -f "test-results.sarif" ]; then
+            echo "FAIL: SARIF file not created"
+            exit 1
+          fi
+          echo "PASS: SARIF file exists ($(wc -c < test-results.sarif) bytes)"
+
+      - name: Assert no critical findings (action repo has no MCP tools)
+        run: |
+          count="${{ steps.scan.outputs.critical-count }}"
+          if [ "$count" != "0" ]; then
+            echo "FAIL: expected 0 critical findings, got $count"
+            exit 1
+          fi
+          echo "PASS: 0 critical findings as expected"
