@@ -1,8 +1,5 @@
 name: 'MCP Security Scan'
-description: >
-  Scan MCP tools, AI agents, and LLM pipelines for security vulnerabilities:
-  tool poisoning, SSRF, prompt injection, DataFlow taint, and ambient authority.
-  Outputs SARIF for GitHub Code Scanning. No API key required.
+description: 'Scan MCP servers & AI agents for tool poisoning, SSRF, prompt injection & DataFlow taint. SARIF output. No API key.'
 author: 'nhomyk'
 
 branding:
