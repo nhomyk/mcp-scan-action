@@ -1,0 +1,84 @@
+name: 'MCP Security Scan'
+description: >
+  Scan MCP tools, AI agents, and LLM pipelines for security vulnerabilities:
+  tool poisoning, SSRF, prompt injection, DataFlow taint, and ambient authority.
+  Outputs SARIF for GitHub Code Scanning. No API key required.
+author: 'nhomyk'
+
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  repo-path:
+    description: 'Path to the repository to scan (default: current directory)'
+    required: false
+    default: '.'
+
+  fail-on-critical:
+    description: 'Exit with code 1 if any critical findings are discovered'
+    required: false
+    default: 'false'
+
+  sarif-output:
+    description: 'Filename for the SARIF output file'
+    required: false
+    default: 'mcp-scan-results.sarif'
+
+  upload-sarif:
+    description: >
+      Upload SARIF to GitHub Code Scanning (requires security-events: write
+      permission in the calling workflow)
+    required: false
+    default: 'true'
+
+  category:
+    description: 'GitHub Code Scanning SARIF category (useful when running multiple scans)'
+    required: false
+    default: 'mcp-security'
+
+outputs:
+  findings-count:
+    description: 'Total number of findings across all scan types'
+    value: ${{ steps.scan.outputs.findings_count }}
+  risk-level:
+    description: 'Overall risk level: low | medium | high | critical'
+    value: ${{ steps.scan.outputs.risk_level }}
+  critical-count:
+    description: 'Number of critical findings'
+    value: ${{ steps.scan.outputs.critical_count }}
+  sarif-file:
+    description: 'Path to the generated SARIF output file'
+    value: ${{ inputs.sarif-output }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install AgenticQA MCP scanner
+      shell: bash
+      run: |
+        pip install --quiet --upgrade pip
+        pip install --quiet \
+          "agenticqa @ git+https://github.com/nhomyk/AgenticQA.git#subdirectory=AgenticQA"
+
+    - name: Run MCP Security Scan
+      id: scan
+      shell: bash
+      env:
+        SCAN_REPO_PATH: ${{ inputs.repo-path }}
+        SARIF_OUTPUT: ${{ inputs.sarif-output }}
+        FAIL_ON_CRITICAL: ${{ inputs.fail-on-critical }}
+      run: python ${{ github.action_path }}/scan.py
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: inputs.upload-sarif == 'true' && always()
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: ${{ inputs.sarif-output }}
+        category: ${{ inputs.category }}
+      continue-on-error: true
