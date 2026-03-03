@@ -9,3 +9,12 @@ updates:
       - "dependencies"
       - "github-actions"
     open-pull-requests-limit: 5
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "python"
+    open-pull-requests-limit: 5
