@@ -40,7 +40,7 @@ fail_on_critical = os.environ.get('FAIL_ON_CRITICAL', 'false').lower() == 'true'
 
 total_findings = 0
 critical_count = 0
-risk_level = 'low'
+# risk_level is assigned after scans run (line ~182); no default needed.
 scan_results = []
 
 mcp_output = None
@@ -246,11 +246,11 @@ if os.environ.get('GITHUB_STEP_SUMMARY', ''):
         types_str = ', '.join(r.get('types', [])[:4]) or ('⚠️ unavailable' if err else '—')
         lines.append(f'| {r["name"]} | {r["findings"]} | {r["critical"]} | {types_str} |')
 
-    lines += [
-        '',
-        '*Powered by [AgenticQA](https://github.com/nhomyk/AgenticQA) · '
-        '[mcp-scan-action](https://github.com/nhomyk/mcp-scan-action)*',
-    ]
+    footer = (
+        '*Powered by AgenticQA MCP Scanner · '
+        '[mcp-scan-action](https://github.com/nhomyk/mcp-scan-action)*'
+    )
+    lines += ['', footer]
 
     with open(summary_file, 'a') as fh:
         fh.write('\n'.join(lines) + '\n')
