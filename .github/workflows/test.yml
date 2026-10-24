@@ -9,55 +9,81 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
-  test:
-    name: Self-test
+  # A self-test that only checks "the outputs are set" passed for months while
+  # every MCP, DataFlow and Prompt Injection finding was being discarded by a
+  # swallowed TypeError. It now scans a deliberately poisoned fixture and
+  # requires each engine to report a NONZERO count, plus a clean fixture that
+  # must scan to zero critical.
+  poisoned:
+    name: Self-test (poisoned fixture must be caught)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Run mcp-scan-action against this repo
+      - name: Scan the poisoned fixture
         id: scan
         uses: ./
         with:
+          repo-path: selftest/poisoned-mcp
           fail-on-critical: 'false'
-          sarif-output: 'test-results.sarif'
+          sarif-output: 'poisoned.sarif'
           upload-sarif: 'false'
 
-      - name: Assert outputs are set
+      - name: Assert every engine reported findings
+        env:
+          TOTAL: ${{ steps.scan.outputs.findings-count }}
+          CRITICAL: ${{ steps.scan.outputs.critical-count }}
+          MCP: ${{ steps.scan.outputs.mcp-count }}
+          DATAFLOW: ${{ steps.scan.outputs.dataflow-count }}
+          PI: ${{ steps.scan.outputs.prompt-injection-count }}
+          ERRORS: ${{ steps.scan.outputs.scanner-errors }}
+          RISK: ${{ steps.scan.outputs.risk-level }}
         run: |
-          echo "risk-level:     ${{ steps.scan.outputs.risk-level }}"
-          echo "findings-count: ${{ steps.scan.outputs.findings-count }}"
-          echo "critical-count: ${{ steps.scan.outputs.critical-count }}"
+          echo "total=$TOTAL critical=$CRITICAL mcp=$MCP dataflow=$DATAFLOW prompt_injection=$PI errors=$ERRORS risk=$RISK"
+          fail=0
+          for pair in "findings-count:$TOTAL" "critical-count:$CRITICAL" "mcp-count:$MCP" "dataflow-count:$DATAFLOW" "prompt-injection-count:$PI"; do
+            name="${pair%%:*}"; val="${pair#*:}"
+            if ! [[ "$val" =~ ^[0-9]+$ ]] || [ "$val" -eq 0 ]; then
+              echo "::error::$name must be a nonzero integer on the poisoned fixture, got '$val'"
+              fail=1
+            fi
+          done
+          [ "$ERRORS" = "0" ] || { echo "::error::scanner-errors must be 0, got '$ERRORS'"; fail=1; }
+          [ "$RISK" = "critical" ] || { echo "::error::risk-level must be critical, got '$RISK'"; fail=1; }
+          exit $fail
 
-          if [ -z "${{ steps.scan.outputs.risk-level }}" ]; then
-            echo "FAIL: risk-level output is empty"
-            exit 1
-          fi
-          if [ -z "${{ steps.scan.outputs.findings-count }}" ]; then
-            echo "FAIL: findings-count output is empty"
-            exit 1
-          fi
-          echo "PASS: all outputs set"
-
-      - name: Assert SARIF file exists
+      - name: Assert the SARIF carries the findings
         run: |
-          if [ ! -f "test-results.sarif" ]; then
-            echo "FAIL: SARIF file not created"
-            exit 1
-          fi
-          echo "PASS: SARIF file exists ($(wc -c < test-results.sarif) bytes)"
+          n=$(python3 -c "import json;print(len(json.load(open('poisoned.sarif'))['runs'][0]['results']))")
+          echo "SARIF results: $n"
+          [ "$n" -gt 0 ] || { echo "::error::SARIF has no results for the poisoned fixture"; exit 1; }
 
-      - name: Assert no critical findings (action repo has no MCP tools)
+  clean:
+    name: Self-test (clean fixture stays clean)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Scan the clean fixture
+        id: scan
+        uses: ./
+        with:
+          repo-path: selftest/clean
+          fail-on-critical: 'true'
+          sarif-output: 'clean.sarif'
+          upload-sarif: 'false'
+
+      - name: Assert zero critical and no scanner errors
+        env:
+          CRITICAL: ${{ steps.scan.outputs.critical-count }}
+          ERRORS: ${{ steps.scan.outputs.scanner-errors }}
         run: |
-          count="${{ steps.scan.outputs.critical-count }}"
-          if [ "$count" != "0" ]; then
-            echo "FAIL: expected 0 critical findings, got $count"
-            exit 1
-          fi
-          echo "PASS: 0 critical findings as expected"
+          echo "critical=$CRITICAL errors=$ERRORS"
+          [ "$CRITICAL" = "0" ] || { echo "::error::expected 0 critical on the clean fixture, got '$CRITICAL'"; exit 1; }
+          [ "$ERRORS" = "0" ] || { echo "::error::expected 0 scanner errors, got '$ERRORS'"; exit 1; }

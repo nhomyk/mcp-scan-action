@@ -210,6 +210,11 @@ Total findings: 7 | Critical: 2
 | `findings-count` | integer | Total findings across all 4 scan engines |
 | `risk-level` | `low` · `medium` · `high` · `critical` | Overall risk classification |
 | `critical-count` | integer | Number of critical-severity findings |
+| `mcp-count` | integer | Findings from the MCP tool scanner |
+| `dataflow-count` | integer | Findings from the DataFlow taint tracer |
+| `prompt-injection-count` | integer | Findings from the Prompt Injection scanner |
+| `architecture-count` | integer | MCP/agent integration areas flagged by the Architecture scanner |
+| `scanner-errors` | integer | Scanners that did not complete. When nonzero the step fails (exit 2): a scanner that crashed has not shown the code is clean |
 | `sarif-file` | path | Location of the generated SARIF file |
 
 ---

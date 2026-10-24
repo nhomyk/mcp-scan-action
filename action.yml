@@ -44,6 +44,21 @@ outputs:
   critical-count:
     description: 'Number of critical findings'
     value: ${{ steps.scan.outputs.critical_count }}
+  mcp-count:
+    description: 'Findings from the MCP tool scanner'
+    value: ${{ steps.scan.outputs.mcp_count }}
+  dataflow-count:
+    description: 'Findings from the DataFlow taint tracer'
+    value: ${{ steps.scan.outputs.dataflow_count }}
+  prompt-injection-count:
+    description: 'Findings from the Prompt Injection scanner'
+    value: ${{ steps.scan.outputs.prompt_injection_count }}
+  architecture-count:
+    description: 'MCP/agent integration areas flagged by the Architecture scanner'
+    value: ${{ steps.scan.outputs.architecture_count }}
+  scanner-errors:
+    description: 'Number of scanners that did not complete (the step fails when this is nonzero)'
+    value: ${{ steps.scan.outputs.scanner_errors }}
   sarif-file:
     description: 'Path to the generated SARIF output file'
     value: ${{ inputs.sarif-output }}
