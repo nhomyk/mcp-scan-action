@@ -28,6 +28,11 @@ jobs:
         with:
           languages: python
           queries: security-and-quality
+          # selftest/poisoned-mcp is a deliberately vulnerable fixture the
+          # self-test requires the scanner to catch; it is never executed.
+          config: |
+            paths-ignore:
+              - selftest
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v4
